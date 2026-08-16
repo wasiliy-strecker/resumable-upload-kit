@@ -15,6 +15,14 @@
     "noImplicitOverride": true,
     "noUncheckedIndexedAccess": true,
     "resolveJsonModule": true,
+    "paths": {
+      "@resumable-upload-kit/protocol": ["packages/protocol/src/index.ts"],
+      "@resumable-upload-kit/server": ["packages/server/src/index.ts"],
+      "@resumable-upload-kit/server/fastify": ["packages/server/src/fastify.ts"],
+      "@resumable-upload-kit/storage-postgres-filesystem": [
+        "packages/storage-postgres-filesystem/src/index.ts"
+      ]
+    },
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2023",
