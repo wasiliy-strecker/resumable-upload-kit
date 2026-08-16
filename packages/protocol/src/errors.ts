@@ -10,6 +10,7 @@ export type TusErrorCode =
   | 'upload_expired'
   | 'upload_locked'
   | 'upload_not_found'
+  | 'upload_terminated'
   | 'upload_too_large'
 
 export interface TusProtocolErrorOptions {

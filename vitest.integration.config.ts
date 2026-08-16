@@ -23,25 +23,7 @@ export default defineConfig({
     ],
   },
   test: {
-    coverage: {
-      exclude: [
-        '**/dist/**',
-        '**/index.ts',
-        '**/*.config.ts',
-        '**/postgres-repository.ts',
-        '**/postgres-schema.ts',
-      ],
-      include: ['packages/*/src/**/*.ts'],
-      provider: 'v8',
-      reporter: ['text', 'json-summary'],
-      thresholds: {
-        branches: 90,
-        functions: 95,
-        lines: 95,
-        statements: 95,
-      },
-    },
-    include: ['packages/**/*.test.ts'],
-    exclude: ['**/dist/**', '**/node_modules/**', '**/*.integration.test.ts'],
+    include: ['packages/**/*.integration.test.ts'],
+    testTimeout: 15_000,
   },
 })
