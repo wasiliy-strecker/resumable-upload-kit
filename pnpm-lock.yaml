@@ -38,6 +38,16 @@ importers:
         specifier: 4.1.10
         version: 4.1.10(@types/node@22.20.1)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.27.7))
 
+  packages/client:
+    dependencies:
+      '@resumable-upload-kit/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+    devDependencies:
+      fake-indexeddb:
+        specifier: 6.2.5
+        version: 6.2.5
+
   packages/protocol: {}
 
   packages/server:
@@ -1427,6 +1437,13 @@ packages:
         integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==,
       }
     engines: { node: '>=12.0.0' }
+
+  fake-indexeddb@6.2.5:
+    resolution:
+      {
+        integrity: sha512-CGnyrvbhPlWYMngksqrSSUT1BAVP49dZocrHuK0SvtR0D5TMs5wP0o3j7jexDJW01KSadjBp1M/71o/KR3nD1w==,
+      }
+    engines: { node: '>=18' }
 
   fast-check@4.9.0:
     resolution:
@@ -3384,6 +3401,8 @@ snapshots:
   esutils@2.0.3: {}
 
   expect-type@1.4.0: {}
+
+  fake-indexeddb@6.2.5: {}
 
   fast-check@4.9.0:
     dependencies:

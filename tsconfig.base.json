@@ -16,6 +16,7 @@
     "noUncheckedIndexedAccess": true,
     "resolveJsonModule": true,
     "paths": {
+      "@resumable-upload-kit/client": ["packages/client/src/index.ts"],
       "@resumable-upload-kit/protocol": ["packages/protocol/src/index.ts"],
       "@resumable-upload-kit/server": ["packages/server/src/index.ts"],
       "@resumable-upload-kit/server/fastify": ["packages/server/src/fastify.ts"],
