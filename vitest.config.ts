@@ -45,7 +45,7 @@ export default defineConfig({
         statements: 95,
       },
     },
-    include: ['packages/**/*.test.ts'],
+    include: ['packages/**/*.test.{ts,tsx}'],
     exclude: ['**/dist/**', '**/node_modules/**', '**/*.integration.test.ts'],
   },
 })
