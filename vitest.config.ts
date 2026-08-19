@@ -4,6 +4,10 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: '@resumable-upload-kit/client',
+        replacement: new URL('./packages/client/src/index.ts', import.meta.url).pathname,
+      },
+      {
         find: '@resumable-upload-kit/server/fastify',
         replacement: new URL('./packages/server/src/fastify.ts', import.meta.url).pathname,
       },
