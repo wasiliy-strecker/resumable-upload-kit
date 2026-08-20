@@ -1,0 +1,24 @@
+{
+  "name": "resumable-upload-kit-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Authenticated Fastify integration for Resumable Upload Kit",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsup",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@resumable-upload-kit/server": "workspace:*",
+    "@resumable-upload-kit/storage-postgres-filesystem": "workspace:*",
+    "fastify": "5.11.2",
+    "jose": "^6.0.0",
+    "pg": "8.22.0"
+  },
+  "devDependencies": {
+    "@resumable-upload-kit/protocol": "workspace:*",
+    "@types/pg": "8.21.0"
+  }
+}

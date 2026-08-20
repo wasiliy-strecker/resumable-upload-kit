@@ -31,11 +31,12 @@ export default defineConfig({
       exclude: [
         '**/dist/**',
         '**/index.ts',
+        '**/main.ts',
         '**/*.config.ts',
         '**/postgres-repository.ts',
         '**/postgres-schema.ts',
       ],
-      include: ['packages/*/src/**/*.ts'],
+      include: ['apps/*/src/**/*.ts', 'packages/*/src/**/*.ts'],
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       thresholds: {
@@ -45,7 +46,7 @@ export default defineConfig({
         statements: 95,
       },
     },
-    include: ['packages/**/*.test.{ts,tsx}'],
+    include: ['apps/**/*.test.{ts,tsx}', 'packages/**/*.test.{ts,tsx}'],
     exclude: ['**/dist/**', '**/node_modules/**', '**/*.integration.test.ts'],
   },
 })

@@ -38,6 +38,31 @@ importers:
         specifier: 4.1.10
         version: 4.1.10(@types/node@22.20.1)(@vitest/coverage-v8@4.1.10)(jsdom@27.4.0)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.27.7))
 
+  apps/api:
+    dependencies:
+      '@resumable-upload-kit/server':
+        specifier: workspace:*
+        version: link:../../packages/server
+      '@resumable-upload-kit/storage-postgres-filesystem':
+        specifier: workspace:*
+        version: link:../../packages/storage-postgres-filesystem
+      fastify:
+        specifier: 5.11.2
+        version: 5.11.2
+      jose:
+        specifier: ^6.0.0
+        version: 6.2.9
+      pg:
+        specifier: 8.22.0
+        version: 8.22.0
+    devDependencies:
+      '@resumable-upload-kit/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@types/pg':
+        specifier: 8.21.0
+        version: 8.21.0
+
   packages/client:
     dependencies:
       '@resumable-upload-kit/protocol':
@@ -1954,6 +1979,12 @@ packages:
         integrity: sha512-HGYWWS/ehqTV3xN10i23tkPkpH46MLCIMFNCaaKNavAXTF1RkqxawEPtnjnGZ6XKSInBKkiOA5BKS+aZiY3AvA==,
       }
     engines: { node: '>=8' }
+
+  jose@6.2.9:
+    resolution:
+      {
+        integrity: sha512-XrchZOFZUl/T3vTwRe8XK+cJrGtMF4th1ARnDfwbBXFKThGhlsxEE4Zu03AD/bjJSt/9jT/mxrOCkJWOg77aPA==,
+      }
 
   joycon@3.1.1:
     resolution:
@@ -4140,6 +4171,8 @@ snapshots:
     dependencies:
       html-escaper: 2.0.2
       istanbul-lib-report: 3.0.1
+
+  jose@6.2.9: {}
 
   joycon@3.1.1: {}
 

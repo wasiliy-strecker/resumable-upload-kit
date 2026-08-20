@@ -12,7 +12,8 @@ The repository is being built in independently verifiable milestones. Its Node.j
 a deliberately bounded tus 1.0 subset over durable PostgreSQL coordination and streaming filesystem
 blobs. A framework-independent browser client adds IndexedDB checkpoints, recovery-aware retries,
 and SHA-256 chunks without coupling the state machine to React. A separate hook package connects
-that state machine to concurrent React rendering, StrictMode, and server rendering.
+that state machine to concurrent React rendering, StrictMode, and server rendering. The authenticated
+demo API validates external JWTs and binds their subjects to durable upload ownership.
 
 ## Why this repository exists
 
@@ -24,7 +25,7 @@ upload.
 This project makes those guarantees and their limits explicit. It is an educational implementation
 with interoperability evidence, not a claim to replace mature general-purpose tus servers.
 
-## Implemented server foundation
+## Implemented foundation
 
 - tus 1.0 version negotiation and capability headers
 - `OPTIONS`, known-length `POST`, `HEAD`, sequential `PATCH`, and `DELETE` routes for Fastify 5
@@ -41,6 +42,8 @@ with interoperability evidence, not a claim to replace mature general-purpose tu
 - pause, resume, cancellation, bounded backoff, and chunk-level progress events
 - StrictMode-safe React subscriptions through `useSyncExternalStore`
 - explicit React actions and stale-result protection for overlapping recovery operations
+- asymmetric JWT validation through issuer-scoped JWKS
+- liveness, PostgreSQL readiness, startup migrations, and graceful shutdown
 - unit, property, filesystem, and PostgreSQL 17 integration tests
 - dual ESM/CommonJS builds with generated type declarations
 
@@ -79,6 +82,18 @@ registerResumableUploadRoutes(app, {
 The service is independent of Fastify and depends only on the exported `UploadRepository` and
 `UploadBlobStore` contracts. Applications can replace either adapter without changing protocol or
 orchestration code.
+
+## Authenticated demo API
+
+`apps/api` shows the packages inside a deployable Node.js boundary. It validates JWT signature,
+issuer, audience, expiration, issued-at time, and subject against a remote JWKS. The verified
+subject is the only identity passed into upload operations, so foreign and unknown resources both
+remain `404`.
+
+The application also validates environment configuration, runs migrations before listening,
+provides separate liveness and PostgreSQL readiness endpoints, and drains its pool on shutdown. Its
+[README](apps/api/README.md) covers local operation; the
+[authentication contract](docs/authenticated-api.md) documents guarantees and intentional limits.
 
 ## Public browser API
 
@@ -167,7 +182,7 @@ packages/server/                       Upload orchestration and Fastify adapter 
 packages/storage-postgres-filesystem/  PostgreSQL leases and filesystem blobs (implemented)
 packages/client/                       Browser state machine and IndexedDB persistence (implemented)
 packages/react/                        React hooks over the framework-neutral client (implemented)
-apps/api/                              Authenticated Fastify integration example
+apps/api/                              Authenticated Fastify integration example (implemented)
 apps/web/                              Accessible React recovery demo
 ```
 
@@ -202,8 +217,10 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/resumable_upload
 2. PostgreSQL and filesystem-backed server — implemented
 3. Framework-independent browser client — implemented
 4. React hooks over the client state machine — implemented
-5. Authenticated demo with failure-driven Playwright scenarios
-6. Cleanup worker, observability, operational documentation, and GitHub `v0.1.0`
+5. Authenticated Fastify demo API — implemented
+6. Accessible React recovery demo
+7. Failure-driven Playwright scenarios
+8. Cleanup worker, observability, operational documentation, and GitHub `v0.1.0`
 
 ## License
 
