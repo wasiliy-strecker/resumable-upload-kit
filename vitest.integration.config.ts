@@ -27,7 +27,8 @@ export default defineConfig({
     ],
   },
   test: {
-    include: ['packages/**/*.integration.test.ts'],
+    fileParallelism: false,
+    include: ['apps/**/*.integration.test.ts', 'packages/**/*.integration.test.ts'],
     testTimeout: 15_000,
   },
 })
