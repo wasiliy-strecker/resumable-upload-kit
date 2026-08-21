@@ -43,6 +43,9 @@ with interoperability evidence, not a claim to replace mature general-purpose tu
 - StrictMode-safe React subscriptions through `useSyncExternalStore`
 - explicit React actions and stale-result protection for overlapping recovery operations
 - asymmetric JWT validation through issuer-scoped JWKS
+- OIDC Authorization Code with PKCE for the React demo, without a browser client secret
+- subject-scoped IndexedDB recovery and request-time access-token resolution
+- accessible upload, pause, cancellation, and original-file reselection workflows
 - liveness, PostgreSQL readiness, startup migrations, and graceful shutdown
 - unit, property, filesystem, and PostgreSQL 17 integration tests
 - dual ESM/CommonJS builds with generated type declarations
@@ -162,6 +165,20 @@ function RecoveryPanel({ client }: { client: ResumableUploadClient }) {
 unmount only unsubscribes; it never cancels a running upload. The precise boundaries are documented
 in the [React lifecycle contract](docs/react-lifecycle.md).
 
+## Authenticated React recovery demo
+
+`apps/web` turns the public packages into a production-shaped React 19 application. It uses a
+generic OpenID Connect provider through Authorization Code with PKCE, resolves the current access
+token for every upload request, and keeps each authenticated subject's checkpoints in a separate
+IndexedDB database. Access tokens and file contents are never written to the checkpoint store.
+
+The Vite development server proxies `/uploads` to the demo API, mirroring the recommended
+same-origin production deployment. The interface supports new uploads, progress, pause, continue,
+cancel, stale-checkpoint removal, and explicit original-file reselection after reload. See the
+[web app README](apps/web/README.md) for local configuration and the
+[authenticated recovery contract](docs/authenticated-react-demo.md) for security and failure
+semantics.
+
 ## Durability contract
 
 PostgreSQL is the authority for the confirmed offset. A chunk is first staged and checksummed,
@@ -183,7 +200,7 @@ packages/storage-postgres-filesystem/  PostgreSQL leases and filesystem blobs (i
 packages/client/                       Browser state machine and IndexedDB persistence (implemented)
 packages/react/                        React hooks over the framework-neutral client (implemented)
 apps/api/                              Authenticated Fastify integration example (implemented)
-apps/web/                              Accessible React recovery demo
+apps/web/                              Accessible React recovery demo (implemented)
 ```
 
 The browser package depends only on Web Platform APIs and the protocol package. React integration
@@ -218,7 +235,7 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/resumable_upload
 3. Framework-independent browser client — implemented
 4. React hooks over the client state machine — implemented
 5. Authenticated Fastify demo API — implemented
-6. Accessible React recovery demo
+6. Accessible React recovery demo — implemented
 7. Failure-driven Playwright scenarios
 8. Cleanup worker, observability, operational documentation, and GitHub `v0.1.0`
 

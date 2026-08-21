@@ -8,6 +8,10 @@ export default defineConfig({
         replacement: new URL('./packages/client/src/index.ts', import.meta.url).pathname,
       },
       {
+        find: '@resumable-upload-kit/react',
+        replacement: new URL('./packages/react/src/index.ts', import.meta.url).pathname,
+      },
+      {
         find: '@resumable-upload-kit/server/fastify',
         replacement: new URL('./packages/server/src/fastify.ts', import.meta.url).pathname,
       },
@@ -31,12 +35,12 @@ export default defineConfig({
       exclude: [
         '**/dist/**',
         '**/index.ts',
-        '**/main.ts',
+        '**/main.{ts,tsx}',
         '**/*.config.ts',
         '**/postgres-repository.ts',
         '**/postgres-schema.ts',
       ],
-      include: ['apps/*/src/**/*.ts', 'packages/*/src/**/*.ts'],
+      include: ['apps/*/src/**/*.{ts,tsx}', 'packages/*/src/**/*.ts'],
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       thresholds: {
