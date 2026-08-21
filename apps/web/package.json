@@ -1,0 +1,32 @@
+{
+  "name": "resumable-upload-kit-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Authenticated React recovery workspace for Resumable Upload Kit",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@resumable-upload-kit/client": "workspace:*",
+    "@resumable-upload-kit/react": "workspace:*",
+    "oidc-client-ts": "^3.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "axe-core": "^4.10.0",
+    "fake-indexeddb": "^6.0.0",
+    "jsdom": "^27.0.0",
+    "vite": "^7.0.0"
+  }
+}
