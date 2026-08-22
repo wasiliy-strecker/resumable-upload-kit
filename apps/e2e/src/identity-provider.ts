@@ -15,7 +15,7 @@ import {
 interface AuthorizationGrant {
   readonly codeChallenge: string
   readonly expiresAt: number
-  readonly nonce: string
+  readonly nonce: string | null
   readonly subject: Subject
 }
 
@@ -144,7 +144,6 @@ function authorize(
     url.searchParams.get('code_challenge_method') !== 'S256' ||
     !url.searchParams.get('scope')?.split(' ').includes('openid') ||
     !state ||
-    !nonce ||
     !codeChallenge
   ) {
     oauthError(response, 400, 'invalid_request')
@@ -203,7 +202,10 @@ async function exchangeCode(
     .setIssuedAt(now)
     .setExpirationTime(now + 600)
     .sign(options.privateKey)
-  const idToken = await new SignJWT({ name: identity.displayName, nonce: grant.nonce })
+  const idToken = await new SignJWT({
+    name: identity.displayName,
+    ...(grant.nonce ? { nonce: grant.nonce } : {}),
+  })
     .setProtectedHeader({ alg: 'RS256', kid: keyId, typ: 'JWT' })
     .setIssuer(identityOrigin)
     .setAudience(clientId)

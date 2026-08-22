@@ -29,7 +29,6 @@ describe('test identity provider', () => {
       client_id: clientId,
       code_challenge: sha256Base64Url(verifier),
       code_challenge_method: 'S256',
-      nonce: 'test-nonce',
       redirect_uri: redirectUri,
       response_type: 'code',
       scope: 'openid profile',
@@ -69,7 +68,7 @@ describe('test identity provider', () => {
     ).resolves.toMatchObject({ payload: { sub: 'user-bob' } })
     await expect(
       jwtVerify(tokenBody.id_token, jwks, { audience: clientId, issuer: identityOrigin }),
-    ).resolves.toMatchObject({ payload: { name: 'Bob', nonce: 'test-nonce', sub: 'user-bob' } })
+    ).resolves.toMatchObject({ payload: { name: 'Bob', sub: 'user-bob' } })
     expect(decodeJwt(tokenBody.access_token).sub).toBe('user-bob')
 
     const userInfo = await fetch(`${identityOrigin}userinfo`, {
