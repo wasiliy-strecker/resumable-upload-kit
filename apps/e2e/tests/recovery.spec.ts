@@ -120,8 +120,9 @@ async function signIn(
   await page.goto('/')
   await page.getByRole('button', { name: /Sign in with your identity provider/i }).click()
   await expect(page).toHaveURL(`${appOrigin}/`)
-  await expect(page.getByText('Signed in as')).toBeVisible()
-  await expect(page.getByText(displayName, { exact: true })).toBeVisible()
+  await expect(page.getByText('Signed in as', { exact: true }).locator('..')).toContainText(
+    displayName,
+  )
 }
 
 async function signOut(page: Page): Promise<void> {

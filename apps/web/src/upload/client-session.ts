@@ -9,7 +9,7 @@ import {
 
 export interface UploadClientSession {
   readonly client: ResumableUploadClient
-  close(): void
+  retain(): () => void
 }
 
 interface CreateUploadClientSessionOptions {
@@ -48,7 +48,34 @@ export function createUploadClientSession(
     },
   })
 
-  return { client, close: () => store.close() }
+  let activeConsumers = 0
+  let closed = false
+  let lifecycleVersion = 0
+
+  return {
+    client,
+    retain(): () => void {
+      if (closed) throw new Error('Upload client session is already closed')
+      activeConsumers += 1
+      lifecycleVersion += 1
+      let released = false
+
+      return () => {
+        if (released) return
+        released = true
+        activeConsumers -= 1
+        lifecycleVersion += 1
+        const releaseVersion = lifecycleVersion
+
+        queueMicrotask(() => {
+          if (!closed && activeConsumers === 0 && lifecycleVersion === releaseVersion) {
+            closed = true
+            store.close()
+          }
+        })
+      }
+    },
+  }
 }
 
 function checkpointDatabaseName(subject: string): string {
