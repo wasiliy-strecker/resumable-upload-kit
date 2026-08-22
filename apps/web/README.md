@@ -73,6 +73,10 @@ pnpm exec vitest run apps/web/test
 The workspace-level `pnpm verify` remains the release gate and includes formatting, linting,
 strict TypeScript, coverage thresholds, and every build.
 
+The separate `pnpm test:e2e` gate drives this application in Chromium against the authenticated API
+and PostgreSQL. It covers real OIDC PKCE login, lost upload responses, reload recovery, source
+mismatch, and subject-scoped browser persistence.
+
 ## Recovery flow
 
 1. A selected file becomes a browser `UploadSource` and starts in checksummed chunks.

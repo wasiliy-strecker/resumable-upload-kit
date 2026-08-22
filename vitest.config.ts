@@ -33,6 +33,7 @@ export default defineConfig({
   test: {
     coverage: {
       exclude: [
+        'apps/e2e/**',
         '**/dist/**',
         '**/index.ts',
         '**/main.{ts,tsx}',
