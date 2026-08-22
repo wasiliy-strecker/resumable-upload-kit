@@ -2,6 +2,7 @@
 
 import 'fake-indexeddb/auto'
 
+import { StrictMode } from 'react'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -21,8 +22,9 @@ const config: WebAppConfig = {
 const alice: AuthUser = { accessToken: 'token', displayName: 'Alice', subject: 'alice' }
 
 describe('web application shell', () => {
-  afterEach(() => {
+  afterEach(async () => {
     cleanup()
+    await Promise.resolve()
     indexedDB.deleteDatabase('resumable-upload-kit:alice')
   })
 
@@ -40,11 +42,16 @@ describe('web application shell', () => {
   it('opens an owner-scoped upload workspace and delegates sign-out', async () => {
     const user = userEvent.setup()
     const client = authClient(alice)
-    render(<App authClient={client.value} config={config} />)
+    render(
+      <StrictMode>
+        <App authClient={client.value} config={config} />
+      </StrictMode>,
+    )
 
     await screen.findByText('Signed in as')
     expect(screen.getByText('Alice')).toBeTruthy()
     expect(await screen.findByText('No interrupted uploads on this browser.')).toBeTruthy()
+    expect(screen.queryByText(/database connection is closing/i)).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(client.signOut).toHaveBeenCalledOnce()
   })

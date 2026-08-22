@@ -97,7 +97,7 @@ function AuthenticatedWorkspace({
     [auth.getAccessToken, config.uploadEndpoint, user.subject],
   )
 
-  useEffect(() => () => session.close(), [session])
+  useEffect(() => session.retain(), [session])
 
   const signOut = async (): Promise<void> => {
     setLogoutError(null)

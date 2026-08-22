@@ -1,0 +1,18 @@
+{
+  "name": "resumable-upload-kit-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Failure-driven browser scenarios for Resumable Upload Kit",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/pg": "8.21.0",
+    "jose": "^6.0.0",
+    "pg": "8.22.0"
+  }
+}

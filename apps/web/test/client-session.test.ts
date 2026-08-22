@@ -44,8 +44,16 @@ describe('authenticated upload client session', () => {
     token = null
     expect(() => resolveHeaders()).toThrow('no longer available')
 
-    session.close()
+    const release = session.retain()
+    release()
+    const strictModeReactivation = session.retain()
+    await Promise.resolve()
+    expect(store.close).not.toHaveBeenCalled()
+    strictModeReactivation()
+    strictModeReactivation()
+    await Promise.resolve()
     expect(store.close).toHaveBeenCalledOnce()
+    expect(() => session.retain()).toThrow('already closed')
     expect(session.client).toBe(client)
   })
 })

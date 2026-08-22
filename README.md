@@ -46,6 +46,7 @@ with interoperability evidence, not a claim to replace mature general-purpose tu
 - OIDC Authorization Code with PKCE for the React demo, without a browser client secret
 - subject-scoped IndexedDB recovery and request-time access-token resolution
 - accessible upload, pause, cancellation, and original-file reselection workflows
+- failure-driven Chromium tests with real PKCE, JWKS, PostgreSQL, and filesystem storage
 - liveness, PostgreSQL readiness, startup migrations, and graceful shutdown
 - unit, property, filesystem, and PostgreSQL 17 integration tests
 - dual ESM/CommonJS builds with generated type declarations
@@ -201,6 +202,7 @@ packages/client/                       Browser state machine and IndexedDB persi
 packages/react/                        React hooks over the framework-neutral client (implemented)
 apps/api/                              Authenticated Fastify integration example (implemented)
 apps/web/                              Accessible React recovery demo (implemented)
+apps/e2e/                              Failure-driven Playwright system tests (implemented)
 ```
 
 The browser package depends only on Web Platform APIs and the protocol package. React integration
@@ -228,6 +230,17 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/resumable_upload
   pnpm test:integration
 ```
 
+The browser suite starts an ephemeral OIDC issuer, the authenticated API, and the Vite application,
+then injects failures at the HTTP response boundary. It requires PostgreSQL and Chromium:
+
+```bash
+pnpm --filter resumable-upload-kit-e2e exec playwright install chromium
+TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/resumable_upload_kit_test \
+  pnpm test:e2e
+```
+
+See the [failure-driven E2E contract](docs/failure-driven-e2e.md) for the tested fault model.
+
 ## Roadmap
 
 1. Protocol contracts and compatibility matrix — implemented
@@ -236,7 +249,7 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/resumable_upload
 4. React hooks over the client state machine — implemented
 5. Authenticated Fastify demo API — implemented
 6. Accessible React recovery demo — implemented
-7. Failure-driven Playwright scenarios
+7. Failure-driven Playwright scenarios — implemented
 8. Cleanup worker, observability, operational documentation, and GitHub `v0.1.0`
 
 ## License
