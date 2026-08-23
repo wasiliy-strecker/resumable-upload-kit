@@ -10,6 +10,10 @@ const validEnvironment: NodeJS.ProcessEnv = {
   JWT_AUDIENCE: 'resumable-upload-api',
   JWT_ISSUER: 'https://identity.example.test/',
   JWT_JWKS_URL: 'https://identity.example.test/.well-known/jwks.json',
+  UPLOAD_CLEANUP_BATCH_SIZE: '80',
+  UPLOAD_CLEANUP_CLAIM_MS: '120000',
+  UPLOAD_CLEANUP_CONCURRENCY: '8',
+  UPLOAD_CLEANUP_INTERVAL_MS: '30000',
   UPLOAD_DIRECTORY: './var/demo-uploads',
 }
 
@@ -19,6 +23,10 @@ describe('API configuration', () => {
 
     expect(config).toMatchObject({
       audience: 'resumable-upload-api',
+      cleanupBatchSize: 80,
+      cleanupClaimDurationMs: 120_000,
+      cleanupConcurrency: 8,
+      cleanupIntervalMs: 30_000,
       databasePoolSize: 12,
       host: '0.0.0.0',
       issuer: 'https://identity.example.test/',
@@ -37,6 +45,10 @@ describe('API configuration', () => {
     })
 
     expect(config).toMatchObject({
+      cleanupBatchSize: 50,
+      cleanupClaimDurationMs: 300_000,
+      cleanupConcurrency: 4,
+      cleanupIntervalMs: 60_000,
       databasePoolSize: 10,
       host: '127.0.0.1',
       port: 3000,
@@ -58,6 +70,11 @@ describe('API configuration', () => {
     ['oversized port', { API_PORT: '65536' }],
     ['non-canonical pool size', { DATABASE_POOL_SIZE: '01' }],
     ['oversized pool', { DATABASE_POOL_SIZE: '101' }],
+    ['zero cleanup batch size', { UPLOAD_CLEANUP_BATCH_SIZE: '0' }],
+    ['oversized cleanup batch', { UPLOAD_CLEANUP_BATCH_SIZE: '1001' }],
+    ['oversized cleanup claim', { UPLOAD_CLEANUP_CLAIM_MS: '3600001' }],
+    ['oversized cleanup concurrency', { UPLOAD_CLEANUP_CONCURRENCY: '33' }],
+    ['invalid cleanup interval', { UPLOAD_CLEANUP_INTERVAL_MS: '1.5' }],
     ['NUL in directory', { UPLOAD_DIRECTORY: 'var/\0uploads' }],
   ] as const)('rejects %s', (_name, override) => {
     expect(() => readApiConfig({ ...validEnvironment, ...override })).toThrow(ApiConfigurationError)

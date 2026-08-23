@@ -1,11 +1,17 @@
 import type { Pool } from 'pg'
 import { describe, expect, it, vi } from 'vitest'
 
+import type { UploadCleanupWorker } from '@resumable-upload-kit/server'
+
 import type { ApiConfig } from '../src/config.js'
 import { createProductionApi } from '../src/runtime.js'
 
 const config: ApiConfig = {
   audience: 'resumable-upload-api',
+  cleanupBatchSize: 50,
+  cleanupClaimDurationMs: 300_000,
+  cleanupConcurrency: 4,
+  cleanupIntervalMs: 60_000,
   databasePoolSize: 4,
   databaseUrl: 'postgresql://database.example.test/uploads',
   host: '127.0.0.1',
@@ -20,7 +26,9 @@ describe('production API runtime', () => {
     const pool = fakePool()
     const createPool = vi.fn(() => pool.value)
     const migrate = vi.fn(async () => undefined)
+    const cleanupWorker = fakeCleanupWorker()
     const app = await createProductionApi(config, {
+      cleanupWorker: cleanupWorker.value,
       createPool,
       logger: false,
       migrate,
@@ -36,6 +44,7 @@ describe('production API runtime', () => {
     const readiness = await app.inject({ method: 'GET', url: '/health/ready' })
     expect(readiness.statusCode).toBe(200)
     expect(pool.query).toHaveBeenCalledWith('SELECT 1')
+    expect(cleanupWorker.runOnce).toHaveBeenCalledOnce()
 
     const errorListener = pool.on.mock.calls[0]?.[1]
     errorListener?.(new Error('idle client failed'))
@@ -50,6 +59,7 @@ describe('production API runtime', () => {
 
     await expect(
       createProductionApi(config, {
+        cleanupWorker: fakeCleanupWorker().value,
         createPool: () => pool.value,
         logger: false,
         migrate: vi.fn(async () => {
@@ -67,4 +77,10 @@ function fakePool() {
   const query = vi.fn(async (_sql: string) => ({ rows: [] as never[] }))
   const value = { end, on, query } as unknown as Pool
   return { end, on, query, value }
+}
+
+function fakeCleanupWorker() {
+  const runOnce = vi.fn(async () => ({ claimed: 0, cleaned: 0, failed: 0 }))
+  const value = { runOnce } satisfies UploadCleanupWorker
+  return { runOnce, value }
 }

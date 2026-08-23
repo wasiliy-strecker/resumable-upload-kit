@@ -2,15 +2,20 @@ import { parseUploadMetadata, serializeUploadMetadata } from '@resumable-upload-
 import type {
   AcquireUploadLeaseInput,
   AcquireUploadLeaseResult,
+  ClaimExpiredUploadsInput,
   CommitUploadLeaseInput,
   CommitUploadLeaseResult,
+  CompleteUploadCleanupInput,
   CreateUploadRecordInput,
   GoneReason,
+  ReleaseUploadCleanupInput,
   ReleaseUploadLeaseInput,
   TerminateUploadInput,
   TerminateUploadResult,
   UploadLookupResult,
   UploadRecord,
+  UploadCleanupClaim,
+  UploadCleanupRepository,
   UploadRepository,
   UploadStatus,
 } from '@resumable-upload-kit/server'
@@ -30,7 +35,7 @@ interface UploadRow extends QueryResultRow {
   readonly upload_offset: string
 }
 
-export class PostgresUploadRepository implements UploadRepository {
+export class PostgresUploadRepository implements UploadCleanupRepository, UploadRepository {
   public constructor(private readonly pool: Pool) {}
 
   public async create(input: CreateUploadRecordInput): Promise<UploadRecord> {
@@ -233,6 +238,81 @@ export class PostgresUploadRepository implements UploadRepository {
     } finally {
       client.release()
     }
+  }
+
+  public async claimExpired(
+    input: ClaimExpiredUploadsInput,
+  ): Promise<readonly UploadCleanupClaim[]> {
+    const result = await this.pool.query<{ id: string }>(
+      `
+        WITH candidates AS (
+          SELECT id
+          FROM resumable_uploads
+          WHERE purged_at IS NULL
+            AND (
+              (
+                status = 'active'
+                AND expires_at <= $1
+                AND (lease_expires_at IS NULL OR lease_expires_at <= $1)
+              )
+              OR status IN ('expired', 'terminated')
+            )
+            AND (
+              cleanup_claim_expires_at IS NULL
+              OR cleanup_claim_expires_at <= $1
+            )
+          ORDER BY COALESCE(expires_at, updated_at), id
+          LIMIT $2
+          FOR UPDATE SKIP LOCKED
+        )
+        UPDATE resumable_uploads AS upload
+        SET status = CASE WHEN upload.status = 'active' THEN 'expired' ELSE upload.status END,
+            lease_id = NULL,
+            lease_expires_at = NULL,
+            cleanup_claim_id = $3,
+            cleanup_claim_expires_at = $4,
+            cleanup_attempts = cleanup_attempts + 1,
+            updated_at = $1
+        FROM candidates
+        WHERE upload.id = candidates.id
+        RETURNING upload.id
+      `,
+      [input.now, input.batchSize, input.claimId, input.claimExpiresAt],
+    )
+
+    return result.rows.map((row) => Object.freeze({ claimId: input.claimId, uploadId: row.id }))
+  }
+
+  public async completeCleanup(input: CompleteUploadCleanupInput): Promise<boolean> {
+    const result = await this.pool.query(
+      `
+        UPDATE resumable_uploads
+        SET cleanup_claim_id = NULL,
+            cleanup_claim_expires_at = NULL,
+            purged_at = $3,
+            updated_at = $3
+        WHERE id = $1
+          AND cleanup_claim_id = $2
+          AND status IN ('expired', 'terminated')
+          AND purged_at IS NULL
+      `,
+      [input.uploadId, input.claimId, input.now],
+    )
+
+    return result.rowCount === 1
+  }
+
+  public async releaseCleanup(input: ReleaseUploadCleanupInput): Promise<void> {
+    await this.pool.query(
+      `
+        UPDATE resumable_uploads
+        SET cleanup_claim_id = NULL,
+            cleanup_claim_expires_at = NULL,
+            updated_at = $3
+        WHERE id = $1 AND cleanup_claim_id = $2 AND purged_at IS NULL
+      `,
+      [input.uploadId, input.claimId, input.now],
+    )
   }
 }
 

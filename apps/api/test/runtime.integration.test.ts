@@ -41,6 +41,10 @@ describe('authenticated API restart', () => {
     roots.push(uploadDirectory)
     const config: ApiConfig = {
       audience: 'resumable-upload-api',
+      cleanupBatchSize: 50,
+      cleanupClaimDurationMs: 300_000,
+      cleanupConcurrency: 4,
+      cleanupIntervalMs: 60_000,
       databasePoolSize: 2,
       databaseUrl,
       host: '127.0.0.1',

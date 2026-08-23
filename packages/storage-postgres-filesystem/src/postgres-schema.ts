@@ -56,6 +56,56 @@ export async function runUploadMigrations(pool: Pool): Promise<void> {
       VALUES (1)
       ON CONFLICT (version) DO NOTHING
     `)
+    await client.query(`
+      ALTER TABLE resumable_uploads
+        ADD COLUMN IF NOT EXISTS cleanup_claim_id uuid,
+        ADD COLUMN IF NOT EXISTS cleanup_claim_expires_at timestamptz,
+        ADD COLUMN IF NOT EXISTS cleanup_attempts integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS purged_at timestamptz
+    `)
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'resumable_uploads_cleanup_claim_pair'
+            AND conrelid = 'resumable_uploads'::regclass
+        ) THEN
+          ALTER TABLE resumable_uploads
+          ADD CONSTRAINT resumable_uploads_cleanup_claim_pair
+          CHECK ((cleanup_claim_id IS NULL) = (cleanup_claim_expires_at IS NULL));
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'resumable_uploads_purge_state'
+            AND conrelid = 'resumable_uploads'::regclass
+        ) THEN
+          ALTER TABLE resumable_uploads
+          ADD CONSTRAINT resumable_uploads_purge_state
+          CHECK (
+            purged_at IS NULL OR (
+              status IN ('expired', 'terminated')
+              AND cleanup_claim_id IS NULL
+              AND cleanup_claim_expires_at IS NULL
+            )
+          );
+        END IF;
+      END
+      $$
+    `)
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS resumable_uploads_cleanup_idx
+      ON resumable_uploads (cleanup_claim_expires_at, updated_at, id)
+      WHERE status IN ('expired', 'terminated') AND purged_at IS NULL
+    `)
+    await client.query(`
+      INSERT INTO resumable_upload_migrations (version)
+      VALUES (2)
+      ON CONFLICT (version) DO NOTHING
+    `)
     await client.query('COMMIT')
   } catch (error) {
     await client.query('ROLLBACK').catch(() => undefined)

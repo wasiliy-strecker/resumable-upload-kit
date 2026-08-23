@@ -1,7 +1,12 @@
 import type { FastifyInstance } from 'fastify'
 import { Pool, type PoolConfig } from 'pg'
 
-import { createUploadService } from '@resumable-upload-kit/server'
+import {
+  createUploadCleanupWorker,
+  createUploadService,
+  startUploadCleanupScheduler,
+  type UploadCleanupWorker,
+} from '@resumable-upload-kit/server'
 import {
   FileSystemUploadBlobStore,
   PostgresUploadRepository,
@@ -14,6 +19,7 @@ import type { ApiConfig } from './config.js'
 
 export interface ProductionApiDependencies {
   readonly accessTokenVerifier?: AccessTokenVerifier
+  readonly cleanupWorker?: UploadCleanupWorker
   readonly createPool?: (config: PoolConfig) => Pool
   readonly logger?: boolean
   readonly migrate?: (pool: Pool) => Promise<void>
@@ -35,6 +41,9 @@ export async function createProductionApi(
     throw error
   }
 
+  const blobStore = new FileSystemUploadBlobStore({ rootDirectory: config.uploadDirectory })
+  const repository = new PostgresUploadRepository(pool)
+
   const app = createApiApp({
     accessTokenVerifier:
       dependencies.accessTokenVerifier ??
@@ -47,16 +56,37 @@ export async function createProductionApi(
     readiness: async () => {
       await pool.query('SELECT 1')
     },
-    service: createUploadService({
-      blobStore: new FileSystemUploadBlobStore({ rootDirectory: config.uploadDirectory }),
-      repository: new PostgresUploadRepository(pool),
-    }),
+    service: createUploadService({ blobStore, repository }),
+  })
+
+  const cleanupWorker =
+    dependencies.cleanupWorker ??
+    createUploadCleanupWorker({
+      batchSize: config.cleanupBatchSize,
+      blobStore,
+      claimDurationMs: config.cleanupClaimDurationMs,
+      concurrency: config.cleanupConcurrency,
+      repository,
+    })
+  let cleanupScheduler: ReturnType<typeof startUploadCleanupScheduler> | undefined
+
+  app.addHook('onReady', () => {
+    cleanupScheduler = startUploadCleanupScheduler(cleanupWorker, {
+      intervalMs: config.cleanupIntervalMs,
+      onError: (error) => {
+        app.log.error({ err: error }, 'Upload cleanup run failed')
+      },
+      onResult: (result) => {
+        if (result.claimed > 0) app.log.info(result, 'Upload cleanup run completed')
+      },
+    })
   })
 
   pool.on('error', (error) => {
     app.log.error({ err: error }, 'Idle PostgreSQL client failed')
   })
   app.addHook('onClose', async () => {
+    await cleanupScheduler?.stop()
     await pool.end()
   })
 

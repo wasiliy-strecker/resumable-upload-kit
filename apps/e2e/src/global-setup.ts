@@ -20,6 +20,10 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     api = await createProductionApi(
       {
         audience,
+        cleanupBatchSize: 50,
+        cleanupClaimDurationMs: 300_000,
+        cleanupConcurrency: 4,
+        cleanupIntervalMs: 60_000,
         databasePoolSize: 4,
         databaseUrl,
         host: '127.0.0.1',

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -7,7 +7,7 @@ import type { FastifyInstance } from 'fastify'
 import { Pool } from 'pg'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { createUploadService } from '@resumable-upload-kit/server'
+import { createUploadCleanupWorker, createUploadService } from '@resumable-upload-kit/server'
 import { registerResumableUploadRoutes } from '@resumable-upload-kit/server/fastify'
 
 import { FileSystemUploadBlobStore } from '../src/filesystem.js'
@@ -146,6 +146,108 @@ describe('PostgreSQL upload persistence', () => {
     })
   })
 
+  it('claims only eligible uploads and preserves purged tombstones', async () => {
+    const claimedUploadId = uploadId
+    const leasedUploadId = '018f3333-3333-7333-8333-333333333333'
+    await createExpiredUpload(claimedUploadId)
+    await createExpiredUpload(leasedUploadId)
+    await repository.acquireLease({
+      expectedOffset: 0,
+      leaseExpiresAt: new Date(now.getTime() + 30_000),
+      leaseId,
+      now: new Date(now.getTime() - 2_000),
+      ownerId: 'owner',
+      uploadId: leasedUploadId,
+    })
+    await repository.create({
+      expiresAt: null,
+      id: '018f4444-4444-7444-8444-444444444444',
+      length: 0,
+      metadata: [],
+      now,
+      ownerId: 'owner',
+    })
+
+    const claims = await repository.claimExpired({
+      batchSize: 10,
+      claimExpiresAt: new Date(now.getTime() + 60_000),
+      claimId: '018f5555-5555-7555-8555-555555555555',
+      now,
+    })
+
+    expect(claims).toEqual([
+      {
+        claimId: '018f5555-5555-7555-8555-555555555555',
+        uploadId: claimedUploadId,
+      },
+    ])
+    await expect(repository.completeCleanup({ ...requireClaim(claims[0]), now })).resolves.toBe(
+      true,
+    )
+    await expect(repository.completeCleanup({ ...requireClaim(claims[0]), now })).resolves.toBe(
+      false,
+    )
+    await expect(repository.findOwned(claimedUploadId, 'owner', now)).resolves.toEqual({
+      kind: 'gone',
+      reason: 'expired',
+    })
+
+    const purged = await pool.query<{ purged_at: Date; status: string }>(
+      'SELECT purged_at, status FROM resumable_uploads WHERE id = $1',
+      [claimedUploadId],
+    )
+    expect(purged.rows[0]).toMatchObject({ purged_at: now, status: 'expired' })
+  })
+
+  it('coordinates concurrent workers and reclaims abandoned cleanup leases', async () => {
+    const ids = [
+      uploadId,
+      '018f3333-3333-7333-8333-333333333333',
+      '018f4444-4444-7444-8444-444444444444',
+    ]
+    await Promise.all(ids.map(createExpiredUpload))
+    const claimExpiresAt = new Date(now.getTime() + 1_000)
+    const [first, second] = await Promise.all([
+      repository.claimExpired({
+        batchSize: 2,
+        claimExpiresAt,
+        claimId: '018f5555-5555-7555-8555-555555555555',
+        now,
+      }),
+      repository.claimExpired({
+        batchSize: 2,
+        claimExpiresAt,
+        claimId: '018f6666-6666-7666-8666-666666666666',
+        now,
+      }),
+    ])
+
+    expect(new Set([...first, ...second].map((claim) => claim.uploadId))).toEqual(new Set(ids))
+    await expect(
+      repository.claimExpired({
+        batchSize: 3,
+        claimExpiresAt,
+        claimId: '018f7777-7777-7777-8777-777777777777',
+        now,
+      }),
+    ).resolves.toHaveLength(0)
+
+    const retryAt = new Date(claimExpiresAt.getTime() + 1)
+    const retried = await repository.claimExpired({
+      batchSize: 3,
+      claimExpiresAt: new Date(retryAt.getTime() + 1_000),
+      claimId: '018f7777-7777-7777-8777-777777777777',
+      now: retryAt,
+    })
+    expect(new Set(retried.map((claim) => claim.uploadId))).toEqual(new Set(ids))
+    await repository.releaseCleanup({ ...requireClaim(retried[0]), now: retryAt })
+
+    const attempts = await pool.query<{ cleanup_attempts: number }>(
+      'SELECT cleanup_attempts FROM resumable_uploads',
+    )
+    expect(attempts.rows.every((row) => row.cleanup_attempts === 2)).toBe(true)
+  })
+
   async function createActiveUpload(): Promise<void> {
     await repository.create({
       expiresAt: new Date(now.getTime() + 86_400_000),
@@ -156,6 +258,56 @@ describe('PostgreSQL upload persistence', () => {
       ownerId: 'owner',
     })
   }
+
+  async function createExpiredUpload(id: string): Promise<void> {
+    await repository.create({
+      expiresAt: new Date(now.getTime() - 1_000),
+      id,
+      length: 5,
+      metadata: [],
+      now: new Date(now.getTime() - 10_000),
+      ownerId: 'owner',
+    })
+  }
+})
+
+describe('durable cleanup path', () => {
+  let root: string
+
+  beforeEach(async () => {
+    await pool.query('TRUNCATE resumable_uploads')
+    root = await mkdtemp(join(tmpdir(), 'resumable-upload-kit-cleanup-'))
+  })
+
+  afterEach(async () => {
+    await rm(root, { force: true, recursive: true })
+  })
+
+  it('deletes an expired blob and keeps its database tombstone', async () => {
+    const blobStore = new FileSystemUploadBlobStore({ rootDirectory: root })
+    await blobStore.create(uploadId)
+    await repository.create({
+      expiresAt: new Date(now.getTime() - 1),
+      id: uploadId,
+      length: 5,
+      metadata: [],
+      now: new Date(now.getTime() - 10_000),
+      ownerId: 'owner',
+    })
+    const worker = createUploadCleanupWorker({
+      blobStore,
+      clock: () => now,
+      createClaimId: () => '018f5555-5555-7555-8555-555555555555',
+      repository,
+    })
+
+    await expect(worker.runOnce()).resolves.toEqual({ claimed: 1, cleaned: 1, failed: 0 })
+    await expect(stat(join(root, 'objects', uploadId))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(repository.findOwned(uploadId, 'owner', now)).resolves.toEqual({
+      kind: 'gone',
+      reason: 'expired',
+    })
+  })
 })
 
 describe('durable Fastify upload path', () => {
@@ -238,4 +390,9 @@ describe('durable Fastify upload path', () => {
 
 async function* chunks(...values: Uint8Array[]): AsyncIterable<Uint8Array> {
   yield* values
+}
+
+function requireClaim<T>(claim: T | undefined): T {
+  if (!claim) throw new Error('Expected cleanup claim')
+  return claim
 }

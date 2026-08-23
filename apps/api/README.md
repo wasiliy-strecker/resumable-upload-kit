@@ -34,8 +34,11 @@ Required settings:
 - `JWT_JWKS_URL`
 
 Optional settings have bounded defaults: `API_HOST`, `API_PORT`, `DATABASE_POOL_SIZE`, and
-`UPLOAD_DIRECTORY`. Remote issuer and JWKS endpoints must use HTTPS. HTTP is accepted only for
-loopback development endpoints.
+`UPLOAD_DIRECTORY`. Cleanup defaults are a batch of 50, four concurrent blob deletions, a
+five-minute claim, and a one-minute interval. They can be changed with
+`UPLOAD_CLEANUP_BATCH_SIZE`, `UPLOAD_CLEANUP_CONCURRENCY`, `UPLOAD_CLEANUP_CLAIM_MS`, and
+`UPLOAD_CLEANUP_INTERVAL_MS`. Remote issuer and JWKS endpoints must use HTTPS. HTTP is accepted
+only for loopback development endpoints.
 
 ```bash
 docker compose up -d postgres
@@ -54,4 +57,5 @@ The application exposes:
 
 `SIGINT` and `SIGTERM` stop accepting work, close Fastify, and drain the PostgreSQL pool. Startup
 migrations use a PostgreSQL advisory transaction lock so concurrent instances can initialize
-safely.
+safely. The cleanup scheduler starts with the application, never overlaps runs in one process, and
+waits for an active run before the pool closes.
