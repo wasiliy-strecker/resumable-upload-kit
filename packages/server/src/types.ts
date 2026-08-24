@@ -90,6 +90,66 @@ export interface UploadRepository {
   terminate(input: TerminateUploadInput): Promise<TerminateUploadResult>
 }
 
+export interface UploadCleanupClaim {
+  readonly claimId: string
+  readonly uploadId: string
+}
+
+export interface ClaimExpiredUploadsInput {
+  readonly batchSize: number
+  readonly claimExpiresAt: Date
+  readonly claimId: string
+  readonly now: Date
+}
+
+export interface CompleteUploadCleanupInput {
+  readonly claimId: string
+  readonly now: Date
+  readonly uploadId: string
+}
+
+export interface ReleaseUploadCleanupInput {
+  readonly claimId: string
+  readonly now: Date
+  readonly uploadId: string
+}
+
+export interface UploadCleanupRepository {
+  claimExpired(input: ClaimExpiredUploadsInput): Promise<readonly UploadCleanupClaim[]>
+  completeCleanup(input: CompleteUploadCleanupInput): Promise<boolean>
+  releaseCleanup(input: ReleaseUploadCleanupInput): Promise<void>
+}
+
+export interface UploadCleanupRunResult {
+  readonly claimed: number
+  readonly cleaned: number
+  readonly failed: number
+}
+
+export interface UploadCleanupWorker {
+  runOnce(): Promise<UploadCleanupRunResult>
+}
+
+export interface CreateUploadCleanupWorkerOptions {
+  readonly batchSize?: number
+  readonly blobStore: Pick<UploadBlobStore, 'delete'>
+  readonly claimDurationMs?: number
+  readonly clock?: () => Date
+  readonly concurrency?: number
+  readonly createClaimId?: () => string
+  readonly repository: UploadCleanupRepository
+}
+
+export interface UploadCleanupSchedulerOptions {
+  readonly intervalMs: number
+  readonly onError?: (error: unknown) => void
+  readonly onResult?: (result: UploadCleanupRunResult) => void
+}
+
+export interface UploadCleanupScheduler {
+  stop(): Promise<void>
+}
+
 export interface StageUploadChunkInput {
   readonly checksumAlgorithm?: TusChecksumAlgorithm
   readonly expectedLength: number

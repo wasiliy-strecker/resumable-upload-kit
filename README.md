@@ -47,6 +47,7 @@ with interoperability evidence, not a claim to replace mature general-purpose tu
 - subject-scoped IndexedDB recovery and request-time access-token resolution
 - accessible upload, pause, cancellation, and original-file reselection workflows
 - failure-driven Chromium tests with real PKCE, JWKS, PostgreSQL, and filesystem storage
+- restart-safe cleanup with bounded concurrency and PostgreSQL `SKIP LOCKED` claims
 - liveness, PostgreSQL readiness, startup migrations, and graceful shutdown
 - unit, property, filesystem, and PostgreSQL 17 integration tests
 - dual ESM/CommonJS builds with generated type declarations
@@ -86,6 +87,21 @@ registerResumableUploadRoutes(app, {
 The service is independent of Fastify and depends only on the exported `UploadRepository` and
 `UploadBlobStore` contracts. Applications can replace either adapter without changing protocol or
 orchestration code.
+
+Expired upload bytes are reclaimed by a separately exported cleanup worker. It atomically claims a
+bounded batch, deletes blobs with configurable concurrency, and records successful purges without
+removing the `410 Gone` tombstone:
+
+```ts
+import { createUploadCleanupWorker } from '@resumable-upload-kit/server'
+
+const cleanup = createUploadCleanupWorker({ blobStore, repository })
+const result = await cleanup.runOnce()
+```
+
+The demo API schedules this worker and drains its active run during graceful shutdown. The
+[cleanup contract](docs/cleanup-worker.md) documents concurrency, crash recovery, retention, and
+failure semantics.
 
 ## Authenticated demo API
 
@@ -250,7 +266,8 @@ See the [failure-driven E2E contract](docs/failure-driven-e2e.md) for the tested
 5. Authenticated Fastify demo API — implemented
 6. Accessible React recovery demo — implemented
 7. Failure-driven Playwright scenarios — implemented
-8. Cleanup worker, observability, operational documentation, and GitHub `v0.1.0`
+8. Restart-safe cleanup worker — implemented
+9. Metrics, operational runbook, and GitHub `v0.1.0`
 
 ## License
 

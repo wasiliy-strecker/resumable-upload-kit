@@ -2,6 +2,10 @@ import { resolve } from 'node:path'
 
 export interface ApiConfig {
   readonly audience: string
+  readonly cleanupBatchSize: number
+  readonly cleanupClaimDurationMs: number
+  readonly cleanupConcurrency: number
+  readonly cleanupIntervalMs: number
   readonly databasePoolSize: number
   readonly databaseUrl: string
   readonly host: string
@@ -18,6 +22,26 @@ export class ApiConfigurationError extends Error {
 export function readApiConfig(environment: NodeJS.ProcessEnv): ApiConfig {
   return Object.freeze({
     audience: boundedText(environment.JWT_AUDIENCE, 'JWT_AUDIENCE', 200),
+    cleanupBatchSize: positiveInteger(
+      environment.UPLOAD_CLEANUP_BATCH_SIZE ?? '50',
+      'UPLOAD_CLEANUP_BATCH_SIZE',
+      { maximum: 1_000 },
+    ),
+    cleanupClaimDurationMs: positiveInteger(
+      environment.UPLOAD_CLEANUP_CLAIM_MS ?? '300000',
+      'UPLOAD_CLEANUP_CLAIM_MS',
+      { maximum: 3_600_000 },
+    ),
+    cleanupConcurrency: positiveInteger(
+      environment.UPLOAD_CLEANUP_CONCURRENCY ?? '4',
+      'UPLOAD_CLEANUP_CONCURRENCY',
+      { maximum: 32 },
+    ),
+    cleanupIntervalMs: positiveInteger(
+      environment.UPLOAD_CLEANUP_INTERVAL_MS ?? '60000',
+      'UPLOAD_CLEANUP_INTERVAL_MS',
+      { maximum: 3_600_000 },
+    ),
     databasePoolSize: positiveInteger(
       environment.DATABASE_POOL_SIZE ?? '10',
       'DATABASE_POOL_SIZE',
