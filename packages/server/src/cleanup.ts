@@ -8,6 +8,7 @@ import type {
   UploadCleanupSchedulerOptions,
   UploadCleanupWorker,
 } from './types.js'
+import { measureTelemetryDuration, readTelemetryClock, recordUploadTelemetry } from './telemetry.js'
 
 const defaultBatchSize = 50
 const defaultClaimDurationMs = 5 * 60 * 1_000
@@ -38,35 +39,71 @@ export function createUploadCleanupWorker(
 
   return {
     async runOnce(): Promise<UploadCleanupRunResult> {
-      const now = validDate(clock(), 'clock')
-      const claimId = createClaimId()
+      const telemetryStartedAt = readTelemetryClock(options.monotonicClock)
 
-      if (!uuidPattern.test(claimId)) {
-        throw new Error('Cleanup claim identifiers must be lowercase RFC 9562 UUIDs')
+      try {
+        const result = await executeCleanupRun(
+          options,
+          batchSize,
+          claimDurationMs,
+          concurrency,
+          clock,
+          createClaimId,
+        )
+        recordUploadTelemetry(options.telemetry, {
+          ...result,
+          durationMs: measureTelemetryDuration(telemetryStartedAt, options.monotonicClock),
+          kind: 'cleanup',
+          outcome: result.failed > 0 ? 'partial' : 'success',
+        })
+        return result
+      } catch (error) {
+        recordUploadTelemetry(options.telemetry, {
+          durationMs: measureTelemetryDuration(telemetryStartedAt, options.monotonicClock),
+          kind: 'cleanup',
+          outcome: 'error',
+        })
+        throw error
       }
-
-      const claims = await options.repository.claimExpired({
-        batchSize,
-        claimExpiresAt: new Date(now.getTime() + claimDurationMs),
-        claimId,
-        now,
-      })
-      let cleaned = 0
-      let failed = 0
-
-      await runBounded(claims, concurrency, async (claim) => {
-        const didClean = await cleanClaim(options, clock, claim)
-
-        if (didClean) {
-          cleaned += 1
-        } else {
-          failed += 1
-        }
-      })
-
-      return Object.freeze({ claimed: claims.length, cleaned, failed })
     },
   }
+}
+
+async function executeCleanupRun(
+  options: CreateUploadCleanupWorkerOptions,
+  batchSize: number,
+  claimDurationMs: number,
+  concurrency: number,
+  clock: () => Date,
+  createClaimId: () => string,
+): Promise<UploadCleanupRunResult> {
+  const now = validDate(clock(), 'clock')
+  const claimId = createClaimId()
+
+  if (!uuidPattern.test(claimId)) {
+    throw new Error('Cleanup claim identifiers must be lowercase RFC 9562 UUIDs')
+  }
+
+  const claims = await options.repository.claimExpired({
+    batchSize,
+    claimExpiresAt: new Date(now.getTime() + claimDurationMs),
+    claimId,
+    now,
+  })
+  let cleaned = 0
+  let failed = 0
+
+  await runBounded(claims, concurrency, async (claim) => {
+    const didClean = await cleanClaim(options, clock, claim)
+
+    if (didClean) {
+      cleaned += 1
+    } else {
+      failed += 1
+    }
+  })
+
+  return Object.freeze({ claimed: claims.length, cleaned, failed })
 }
 
 export function startUploadCleanupScheduler(

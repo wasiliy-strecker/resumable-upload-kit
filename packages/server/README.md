@@ -40,3 +40,24 @@ await scheduler.stop()
 
 The scheduler starts one run immediately and schedules the next only after it finishes, so cleanup
 runs never overlap inside one process. `stop()` cancels future work and waits for the active run.
+
+## Telemetry
+
+`UploadTelemetry` receives a closed union of provider-neutral events. `createUploadService` and
+`createUploadCleanupWorker` accept it as an optional dependency. Observers receive only operation
+names, bounded outcomes and error codes, durations, byte counts, and aggregate cleanup results.
+They never receive an upload ID, owner, metadata, filename, token, or error message.
+
+```ts
+const telemetry = {
+  record(event) {
+    metrics.record(event)
+  },
+}
+
+const service = createUploadService({ blobStore, repository, telemetry })
+const cleanup = createUploadCleanupWorker({ blobStore, repository, telemetry })
+```
+
+Observer exceptions are isolated from upload and cleanup correctness. Existing `UploadService`
+implementations can be wrapped with `instrumentUploadService` instead of being reconstructed.

@@ -1,5 +1,6 @@
 export { createUploadCleanupWorker, startUploadCleanupScheduler } from './cleanup.js'
 export { createUploadService, defaultUploadLimits } from './service.js'
+export { instrumentUploadService } from './telemetry.js'
 export {
   UploadBlobError,
   type AcquireUploadLeaseInput,
@@ -14,6 +15,7 @@ export {
   type CreateUploadRecordInput,
   type CreateUploadServiceOptions,
   type GoneReason,
+  type InstrumentUploadServiceOptions,
   type ReleaseUploadLeaseInput,
   type ReleaseUploadCleanupInput,
   type StagedUploadChunk,
@@ -30,8 +32,11 @@ export {
   type UploadCleanupWorker,
   type UploadLimits,
   type UploadLookupResult,
+  type UploadOperation,
   type UploadRecord,
   type UploadRepository,
   type UploadService,
   type UploadStatus,
+  type UploadTelemetry,
+  type UploadTelemetryEvent,
 } from './types.js'

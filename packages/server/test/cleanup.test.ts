@@ -8,6 +8,8 @@ import type {
   UploadCleanupRepository,
   UploadCleanupRunResult,
   UploadCleanupWorker,
+  UploadTelemetry,
+  UploadTelemetryEvent,
 } from '../src/types.js'
 
 const now = new Date('2026-08-23T10:00:00.000Z')
@@ -117,6 +119,52 @@ describe('upload cleanup worker', () => {
 
     await expect(harness.worker.runOnce()).rejects.toThrow('clock')
   })
+
+  it('records successful, partial, and failed cleanup runs without resource identifiers', async () => {
+    const events: UploadTelemetryEvent[] = []
+    const successful = createHarness({
+      monotonicClock: sequence(10, 25),
+      telemetry: { record: (event) => events.push(event) },
+    })
+    successful.blobStore.failures.add(uploadIds[0] ?? '')
+
+    await successful.worker.runOnce()
+    expect(events).toEqual([
+      {
+        claimed: 3,
+        cleaned: 2,
+        durationMs: 15,
+        failed: 1,
+        kind: 'cleanup',
+        outcome: 'partial',
+      },
+    ])
+
+    const failed = createHarness({
+      monotonicClock: sequence(30, 35),
+      telemetry: { record: (event) => events.push(event) },
+    })
+    failed.repository.rejectClaim = true
+    await expect(failed.worker.runOnce()).rejects.toThrow('database unavailable')
+    expect(events.at(-1)).toEqual({
+      durationMs: 5,
+      kind: 'cleanup',
+      outcome: 'error',
+    })
+    expect(JSON.stringify(events)).not.toContain(uploadIds[0])
+  })
+
+  it('does not let cleanup telemetry failures affect cleanup', async () => {
+    const harness = createHarness({
+      telemetry: {
+        record(): void {
+          throw new Error('metrics unavailable')
+        },
+      },
+    })
+
+    await expect(harness.worker.runOnce()).resolves.toEqual({ claimed: 3, cleaned: 3, failed: 0 })
+  })
 })
 
 describe('upload cleanup scheduler', () => {
@@ -199,6 +247,8 @@ interface HarnessOptions {
   readonly clock?: () => Date
   readonly concurrency?: number
   readonly createClaimId?: () => string
+  readonly monotonicClock?: () => number
+  readonly telemetry?: UploadTelemetry
 }
 
 function createHarness(options: HarnessOptions = {}) {
@@ -208,12 +258,18 @@ function createHarness(options: HarnessOptions = {}) {
     blobStore,
     clock: options.clock ?? (() => now),
     createClaimId: options.createClaimId ?? (() => claimId),
+    ...(options.monotonicClock ? { monotonicClock: options.monotonicClock } : {}),
     repository,
+    ...(options.telemetry ? { telemetry: options.telemetry } : {}),
     ...(options.batchSize === undefined ? {} : { batchSize: options.batchSize }),
     ...(options.claimDurationMs === undefined ? {} : { claimDurationMs: options.claimDurationMs }),
     ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
   })
   return { blobStore, repository, worker }
+}
+
+function sequence(...values: number[]): () => number {
+  return () => values.shift() ?? 0
 }
 
 class MemoryCleanupRepository implements UploadCleanupRepository {

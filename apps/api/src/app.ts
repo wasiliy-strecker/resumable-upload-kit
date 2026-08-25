@@ -5,10 +5,12 @@ import { registerResumableUploadRoutes } from '@resumable-upload-kit/server/fast
 import type { UploadService } from '@resumable-upload-kit/server'
 
 import { createOwnerResolver, type AccessTokenVerifier } from './auth.js'
+import type { MetricsEndpoint } from './metrics.js'
 
 export interface CreateApiAppOptions {
   readonly accessTokenVerifier: AccessTokenVerifier
   readonly logger?: boolean
+  readonly metrics?: MetricsEndpoint
   readonly readiness?: () => Promise<void>
   readonly service: UploadService
 }
@@ -41,6 +43,25 @@ export function createApiApp(options: CreateApiAppOptions): FastifyInstance {
         })
     }
   })
+
+  const metrics = options.metrics
+
+  if (metrics) {
+    app.get('/metrics', async (_request, reply) => {
+      try {
+        return reply
+          .header('Cache-Control', 'no-store')
+          .type(metrics.contentType)
+          .send(await metrics.render())
+      } catch {
+        return reply
+          .header('Cache-Control', 'no-store')
+          .code(503)
+          .type('text/plain')
+          .send('Metrics unavailable\n')
+      }
+    })
+  }
 
   registerResumableUploadRoutes(app, {
     resolveOwner: createOwnerResolver(options.accessTokenVerifier),

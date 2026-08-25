@@ -16,12 +16,14 @@ import {
 import { createApiApp } from './app.js'
 import { createAccessTokenVerifier, type AccessTokenVerifier } from './auth.js'
 import type { ApiConfig } from './config.js'
+import { createApiMetrics, type ApiMetrics } from './metrics.js'
 
 export interface ProductionApiDependencies {
   readonly accessTokenVerifier?: AccessTokenVerifier
   readonly cleanupWorker?: UploadCleanupWorker
   readonly createPool?: (config: PoolConfig) => Pool
   readonly logger?: boolean
+  readonly metrics?: ApiMetrics
   readonly migrate?: (pool: Pool) => Promise<void>
 }
 
@@ -43,6 +45,7 @@ export async function createProductionApi(
 
   const blobStore = new FileSystemUploadBlobStore({ rootDirectory: config.uploadDirectory })
   const repository = new PostgresUploadRepository(pool)
+  const metrics = dependencies.metrics ?? createApiMetrics()
 
   const app = createApiApp({
     accessTokenVerifier:
@@ -53,10 +56,11 @@ export async function createProductionApi(
         jwksUrl: config.jwksUrl,
       }),
     logger: dependencies.logger ?? true,
+    metrics,
     readiness: async () => {
       await pool.query('SELECT 1')
     },
-    service: createUploadService({ blobStore, repository }),
+    service: createUploadService({ blobStore, repository, telemetry: metrics.telemetry }),
   })
 
   const cleanupWorker =
@@ -67,6 +71,7 @@ export async function createProductionApi(
       claimDurationMs: config.cleanupClaimDurationMs,
       concurrency: config.cleanupConcurrency,
       repository,
+      telemetry: metrics.telemetry,
     })
   let cleanupScheduler: ReturnType<typeof startUploadCleanupScheduler> | undefined
 

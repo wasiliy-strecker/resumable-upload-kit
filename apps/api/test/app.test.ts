@@ -48,6 +48,47 @@ describe('authenticated demo API', () => {
     expect(available.json()).toEqual({ status: 'ready' })
   })
 
+  it('exposes uncached Prometheus metrics without invoking authentication', async () => {
+    const app = createApiApp({
+      accessTokenVerifier: rejectingVerifier(),
+      metrics: {
+        contentType: 'text/plain; version=0.0.4; charset=utf-8',
+        async render(): Promise<string> {
+          return '# HELP demo metric\ndemo_total 1\n'
+        },
+      },
+      service: new OwnedStubService(),
+    })
+    apps.push(app)
+
+    const response = await app.inject({ method: 'GET', url: '/metrics' })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(response.headers['content-type']).toContain('text/plain')
+    expect(response.body).toContain('demo_total 1')
+  })
+
+  it('sanitizes metrics collection failures', async () => {
+    const app = createApiApp({
+      accessTokenVerifier: rejectingVerifier(),
+      metrics: {
+        contentType: 'text/plain',
+        async render(): Promise<string> {
+          throw new Error('secret collector detail')
+        },
+      },
+      service: new OwnedStubService(),
+    })
+    apps.push(app)
+
+    const response = await app.inject({ method: 'GET', url: '/metrics' })
+
+    expect(response.statusCode).toBe(503)
+    expect(response.body).toBe('Metrics unavailable\n')
+    expect(response.body).not.toContain('secret collector detail')
+  })
+
   it('authenticates upload creation and hides one owner resource from another', async () => {
     const fixture = await createJwtFixture()
     const service = new OwnedStubService()
