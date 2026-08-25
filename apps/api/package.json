@@ -15,7 +15,8 @@
     "@resumable-upload-kit/storage-postgres-filesystem": "workspace:*",
     "fastify": "5.11.2",
     "jose": "^6.0.0",
-    "pg": "8.22.0"
+    "pg": "8.22.0",
+    "prom-client": "15.1.3"
   },
   "devDependencies": {
     "@resumable-upload-kit/protocol": "workspace:*",

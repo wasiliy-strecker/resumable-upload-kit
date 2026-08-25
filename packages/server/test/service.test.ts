@@ -20,6 +20,8 @@ import {
   type UploadLookupResult,
   type UploadRecord,
   type UploadRepository,
+  type UploadTelemetry,
+  type UploadTelemetryEvent,
 } from '../src/types.js'
 
 const uploadId = '018f1111-1111-7111-8111-111111111111'
@@ -275,6 +277,21 @@ describe('createUploadService', () => {
       maximumUploadBytes: 262_144_000,
     })
   })
+
+  it('applies optional telemetry around the complete service boundary', async () => {
+    const events: UploadTelemetryEvent[] = []
+    const harness = createHarness({
+      monotonicClock: () => 10,
+      telemetry: { record: (event) => events.push(event) },
+    })
+
+    await harness.service.create({ length: 1, metadata: [], ownerId: 'owner' })
+
+    expect(events).toEqual([
+      { kind: 'upload_created' },
+      { durationMs: 0, kind: 'operation', operation: 'create', outcome: 'success' },
+    ])
+  })
 })
 
 interface HarnessOptions {
@@ -286,6 +303,8 @@ interface HarnessOptions {
     maximumChunkBytes: number
     maximumUploadBytes: number
   }>
+  readonly monotonicClock?: () => number
+  readonly telemetry?: UploadTelemetry
 }
 
 function createHarness(options: HarnessOptions = {}) {
@@ -297,7 +316,9 @@ function createHarness(options: HarnessOptions = {}) {
     clock: options.clock ?? (() => now),
     createId: () => ids.shift() ?? leaseId,
     ...(options.limits ? { limits: options.limits } : {}),
+    ...(options.monotonicClock ? { monotonicClock: options.monotonicClock } : {}),
     repository,
+    ...(options.telemetry ? { telemetry: options.telemetry } : {}),
   })
   return { blobs, repository, service }
 }

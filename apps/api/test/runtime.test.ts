@@ -45,6 +45,9 @@ describe('production API runtime', () => {
     expect(readiness.statusCode).toBe(200)
     expect(pool.query).toHaveBeenCalledWith('SELECT 1')
     expect(cleanupWorker.runOnce).toHaveBeenCalledOnce()
+    const metrics = await app.inject({ method: 'GET', url: '/metrics' })
+    expect(metrics.statusCode).toBe(200)
+    expect(metrics.body).toContain('resumable_upload_node_process_cpu_user_seconds_total')
 
     const errorListener = pool.on.mock.calls[0]?.[1]
     errorListener?.(new Error('idle client failed'))

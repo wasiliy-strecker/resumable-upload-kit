@@ -48,6 +48,7 @@ with interoperability evidence, not a claim to replace mature general-purpose tu
 - accessible upload, pause, cancellation, and original-file reselection workflows
 - failure-driven Chromium tests with real PKCE, JWKS, PostgreSQL, and filesystem storage
 - restart-safe cleanup with bounded concurrency and PostgreSQL `SKIP LOCKED` claims
+- provider-neutral telemetry with Prometheus upload, error, byte, latency, and cleanup metrics
 - liveness, PostgreSQL readiness, startup migrations, and graceful shutdown
 - unit, property, filesystem, and PostgreSQL 17 integration tests
 - dual ESM/CommonJS builds with generated type declarations
@@ -102,6 +103,12 @@ const result = await cleanup.runOnce()
 The demo API schedules this worker and drains its active run during graceful shutdown. The
 [cleanup contract](docs/cleanup-worker.md) documents concurrency, crash recovery, retention, and
 failure semantics.
+
+The server can also emit a closed set of telemetry events without depending on a metrics vendor.
+The demo API maps those events into an isolated Prometheus registry and exposes `GET /metrics`.
+Resource identifiers, owners, metadata, filenames, and tokens never enter telemetry events or
+labels. See the [observability contract](docs/observability.md) for the metric surface and deployment
+boundary.
 
 ## Authenticated demo API
 
@@ -267,7 +274,8 @@ See the [failure-driven E2E contract](docs/failure-driven-e2e.md) for the tested
 6. Accessible React recovery demo — implemented
 7. Failure-driven Playwright scenarios — implemented
 8. Restart-safe cleanup worker — implemented
-9. Metrics, operational runbook, and GitHub `v0.1.0`
+9. Provider-neutral telemetry and Prometheus metrics — implemented
+10. Operational runbook and GitHub `v0.1.0`
 
 ## License
 

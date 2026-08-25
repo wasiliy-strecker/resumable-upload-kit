@@ -15,6 +15,7 @@ import {
   type UploadRecord,
   type UploadService,
 } from './types.js'
+import { instrumentUploadService } from './telemetry.js'
 
 export const defaultUploadLimits: UploadLimits = Object.freeze({
   expirationMs: 24 * 60 * 60 * 1_000,
@@ -31,7 +32,7 @@ export function createUploadService(options: CreateUploadServiceOptions): Upload
   const clock = options.clock ?? (() => new Date())
   const createId = options.createId ?? randomUUID
 
-  return {
+  const service: UploadService = {
     limits,
 
     async create(input: CreateUploadInput): Promise<UploadRecord> {
@@ -159,6 +160,13 @@ export function createUploadService(options: CreateUploadServiceOptions): Upload
       }
     },
   }
+
+  return options.telemetry
+    ? instrumentUploadService(service, {
+        ...(options.monotonicClock ? { monotonicClock: options.monotonicClock } : {}),
+        telemetry: options.telemetry,
+      })
+    : service
 }
 
 async function commitStagedChunk(

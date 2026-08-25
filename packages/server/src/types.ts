@@ -1,4 +1,5 @@
 import type {
+  TusErrorCode,
   TusChecksumAlgorithm,
   UploadChecksum,
   UploadMetadataEntry,
@@ -137,7 +138,9 @@ export interface CreateUploadCleanupWorkerOptions {
   readonly clock?: () => Date
   readonly concurrency?: number
   readonly createClaimId?: () => string
+  readonly monotonicClock?: () => number
   readonly repository: UploadCleanupRepository
+  readonly telemetry?: UploadTelemetry
 }
 
 export interface UploadCleanupSchedulerOptions {
@@ -221,5 +224,50 @@ export interface CreateUploadServiceOptions {
   readonly clock?: () => Date
   readonly createId?: () => string
   readonly limits?: Partial<UploadLimits>
+  readonly monotonicClock?: () => number
   readonly repository: UploadRepository
+  readonly telemetry?: UploadTelemetry
+}
+
+export type UploadOperation = 'append' | 'create' | 'head' | 'terminate'
+
+export type UploadTelemetryEvent =
+  | {
+      readonly durationMs: number
+      readonly kind: 'operation'
+      readonly operation: UploadOperation
+      readonly outcome: 'success'
+    }
+  | {
+      readonly durationMs: number
+      readonly errorCode: TusErrorCode | 'internal'
+      readonly kind: 'operation'
+      readonly operation: UploadOperation
+      readonly outcome: 'error'
+    }
+  | { readonly kind: 'upload_created' }
+  | { readonly kind: 'upload_completed' }
+  | { readonly kind: 'upload_terminated' }
+  | { readonly bytes: number; readonly kind: 'bytes_confirmed' }
+  | {
+      readonly claimed: number
+      readonly cleaned: number
+      readonly durationMs: number
+      readonly failed: number
+      readonly kind: 'cleanup'
+      readonly outcome: 'partial' | 'success'
+    }
+  | {
+      readonly durationMs: number
+      readonly kind: 'cleanup'
+      readonly outcome: 'error'
+    }
+
+export interface UploadTelemetry {
+  record(event: UploadTelemetryEvent): void
+}
+
+export interface InstrumentUploadServiceOptions {
+  readonly monotonicClock?: () => number
+  readonly telemetry: UploadTelemetry
 }

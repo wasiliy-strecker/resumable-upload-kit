@@ -52,6 +52,7 @@ The application exposes:
 
 - `GET /health/live` for process liveness
 - `GET /health/ready` for PostgreSQL readiness
+- `GET /metrics` for Prometheus scraping
 - `OPTIONS /uploads` for public tus capability discovery
 - authenticated tus creation, inspection, append, and termination routes under `/uploads`
 
@@ -59,3 +60,15 @@ The application exposes:
 migrations use a PostgreSQL advisory transaction lock so concurrent instances can initialize
 safely. The cleanup scheduler starts with the application, never overlaps runs in one process, and
 waits for an active run before the pool closes.
+
+## Metrics deployment boundary
+
+`GET /metrics` is intentionally unauthenticated for standard Prometheus scraping and includes
+Node.js process metrics. Restrict it to a private monitoring network or protect it at the reverse
+proxy; do not expose it directly to the public internet. Responses disable caching, and collection
+failures return a sanitized `503` without collector details.
+
+The application uses a private registry rather than the process-global Prometheus registry. Metric
+labels come from fixed enums only. Access-token subjects, upload identifiers, filenames, metadata,
+and errors are never label values. The complete metric contract and a scrape example are in
+[the observability guide](../../docs/observability.md).
