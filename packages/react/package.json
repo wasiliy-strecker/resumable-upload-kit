@@ -8,6 +8,10 @@
     "url": "git+https://github.com/wasiliy-strecker/resumable-upload-kit.git",
     "directory": "packages/react"
   },
+  "homepage": "https://github.com/wasiliy-strecker/resumable-upload-kit/tree/main/packages/react#readme",
+  "bugs": {
+    "url": "https://github.com/wasiliy-strecker/resumable-upload-kit/issues"
+  },
   "keywords": [
     "hooks",
     "react",

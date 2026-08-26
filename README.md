@@ -1,6 +1,7 @@
 # Resumable Upload Kit
 
 [![CI](https://github.com/wasiliy-strecker/resumable-upload-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/wasiliy-strecker/resumable-upload-kit/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/wasiliy-strecker/resumable-upload-kit)](https://github.com/wasiliy-strecker/resumable-upload-kit/releases/latest)
 ![Node.js CI](https://img.shields.io/badge/Node.js_CI-22_%7C_24_%7C_26-339933)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -241,8 +242,10 @@ pnpm install
 pnpm verify
 ```
 
-`pnpm verify` checks formatting, strict ESLint rules, TypeScript, tests with enforced coverage, and
-publishable package builds. CI repeats the complete verification on Node.js 22, 24, and 26.
+`pnpm verify` checks formatting, strict ESLint rules, TypeScript, tests with enforced coverage,
+publishable package builds, package metadata, ESM/CommonJS resolution, and a strict TypeScript
+consumer installed from the packed archives. CI repeats the complete verification on Node.js 22,
+24, and 26.
 
 PostgreSQL integration tests run separately against PostgreSQL 17 so normal unit tests do not hide
 infrastructure behind mocks:
@@ -264,6 +267,30 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/resumable_upload
 
 See the [failure-driven E2E contract](docs/failure-driven-e2e.md) for the tested fault model.
 
+## Release and operations
+
+Version `0.1.0` is distributed as five package archives through the
+[GitHub release](https://github.com/wasiliy-strecker/resumable-upload-kit/releases/tag/v0.1.0).
+The scoped package names are not currently published to npm. This is intentional: the first release
+proves the exact artifacts, checksums, provenance, and clean-consumer behavior without requiring a
+registry account.
+
+Download the archives with the GitHub CLI and install the dependency chain needed by an application:
+
+```bash
+gh release download v0.1.0 --repo wasiliy-strecker/resumable-upload-kit
+pnpm add \
+  ./resumable-upload-kit-protocol-0.1.0.tgz \
+  ./resumable-upload-kit-client-0.1.0.tgz \
+  ./resumable-upload-kit-react-0.1.0.tgz
+```
+
+Server applications install the protocol, server, and storage archives in the same way. Every release
+asset is covered by `SHA256SUMS` and a GitHub artifact attestation. The
+[changelog](CHANGELOG.md) records the public surface, the [release guide](docs/releasing.md) documents
+the immutable tag pipeline, and the [operations runbook](docs/operations-runbook.md) covers topology,
+proxy behavior, capacity, backup, rollback, and incident response.
+
 ## Roadmap
 
 1. Protocol contracts and compatibility matrix — implemented
@@ -275,7 +302,7 @@ See the [failure-driven E2E contract](docs/failure-driven-e2e.md) for the tested
 7. Failure-driven Playwright scenarios — implemented
 8. Restart-safe cleanup worker — implemented
 9. Provider-neutral telemetry and Prometheus metrics — implemented
-10. Operational runbook and GitHub `v0.1.0`
+10. Operational runbook and attested GitHub `v0.1.0` release — implemented
 
 ## License
 
