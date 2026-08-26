@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  attestations: write
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    name: Verify and publish release
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6-alpine
+        env:
+          POSTGRES_DB: resumable_upload_kit_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d resumable_upload_kit_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/resumable_upload_kit_test
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify annotated tag on main
+        run: |
+          test "$(git cat-file -t "$GITHUB_REF_NAME")" = tag
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.13.1
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Validate release metadata
+        run: pnpm release:validate -- --tag "$GITHUB_REF_NAME"
+      - name: Verify workspace and package consumers
+        run: pnpm verify
+      - name: Run PostgreSQL integration tests
+        run: pnpm test:integration
+      - name: Install Chromium
+        run: pnpm --filter resumable-upload-kit-e2e exec playwright install --with-deps chromium
+      - name: Run failure-driven browser tests
+        run: pnpm test:e2e
+      - name: Build release archives
+        run: node scripts/verify-packages.mjs --output release
+      - name: Generate checksums and notes
+        run: |
+          (cd release && sha256sum ./*.tgz > SHA256SUMS)
+          node scripts/release-notes.mjs --output "$RUNNER_TEMP/release-notes.md"
+      - name: Attest release assets
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            release/*.tgz
+            release/SHA256SUMS
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          release/*.tgz
+          release/SHA256SUMS
+          --repo "$GITHUB_REPOSITORY"
+          --verify-tag
+          --title "Resumable Upload Kit $GITHUB_REF_NAME"
+          --notes-file "$RUNNER_TEMP/release-notes.md"

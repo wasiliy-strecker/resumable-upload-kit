@@ -3,8 +3,27 @@
   "version": "0.1.0",
   "description": "PostgreSQL coordination and streaming filesystem blobs for Resumable Upload Kit",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wasiliy-strecker/resumable-upload-kit.git",
+    "directory": "packages/storage-postgres-filesystem"
+  },
+  "homepage": "https://github.com/wasiliy-strecker/resumable-upload-kit/tree/main/packages/storage-postgres-filesystem#readme",
+  "bugs": {
+    "url": "https://github.com/wasiliy-strecker/resumable-upload-kit/issues"
+  },
+  "keywords": [
+    "filesystem",
+    "postgresql",
+    "resumable",
+    "storage",
+    "upload"
+  ],
   "type": "module",
   "sideEffects": false,
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -30,10 +49,10 @@
   "dependencies": {
     "@resumable-upload-kit/protocol": "workspace:*",
     "@resumable-upload-kit/server": "workspace:*",
+    "@types/pg": "8.21.0",
     "pg": "8.22.0"
   },
   "devDependencies": {
-    "@types/pg": "8.21.0",
     "fastify": "5.11.2"
   },
   "publishConfig": {

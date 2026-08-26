@@ -8,6 +8,10 @@
     "url": "git+https://github.com/wasiliy-strecker/resumable-upload-kit.git",
     "directory": "packages/protocol"
   },
+  "homepage": "https://github.com/wasiliy-strecker/resumable-upload-kit/tree/main/packages/protocol#readme",
+  "bugs": {
+    "url": "https://github.com/wasiliy-strecker/resumable-upload-kit/issues"
+  },
   "keywords": [
     "upload",
     "resumable",
